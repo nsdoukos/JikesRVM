@@ -12,59 +12,57 @@
  */
 package org.mmtk.plan.garbagefirst;
 
-import org.mmtk.plan.StopTheWorld;
+import org.mmtk.plan.Plan;
 import org.mmtk.plan.Trace;
-import org.mmtk.plan.TransitiveClosure;
-import org.mmtk.policy.MarkSweepSpace;
-import org.mmtk.policy.Space;
+import org.mmtk.policy.GarbageFirstSpace;
 import org.mmtk.utility.heap.VMRequest;
+import org.mmtk.utility.heap.layout.VMLayoutConstants;
+import org.mmtk.vm.VM;
 import org.vmmagic.pragma.Inline;
 import org.vmmagic.pragma.Interruptible;
 import org.vmmagic.pragma.Uninterruptible;
-import org.vmmagic.unboxed.ObjectReference;
+import org.vmmagic.unboxed.Address;
+import org.vmmagic.unboxed.Extent;
+
 
 /**
- * This class implements the global state of a simple mark-sweep collector.<p>
- *
- * All plans make a clear distinction between <i>global</i> and
- * <i>thread-local</i> activities, and divides global and local state
- * into separate class hierarchies.  Global activities must be
- * synchronized, whereas no synchronization is required for
- * thread-local activities.  There is a single instance of Plan (or the
- * appropriate sub-class), and a 1:1 mapping of PlanLocal to "kernel
- * threads" (aka CPUs).  Thus instance
- * methods of PlanLocal allow fast, unsychronized access to functions such as
- * allocation and collection.<p>
- *
- * The global instance defines and manages static resources
- * (such as memory and virtual memory resources).  This mapping of threads to
- * instances is crucial to understanding the correctness and
- * performance properties of MMTk plans.
+ * This class implements the global state of a a simple allocator
+ * without a collector.
  */
 @Uninterruptible
-public class G1 extends StopTheWorld {
+public class G1 extends Plan {
 
-  /****************************************************************************
+  /*****************************************************************************
    * Class variables
    */
 
   /**
    *
    */
-  public static final MarkSweepSpace g1Space = new MarkSweepSpace("ms", VMRequest.discontiguous());
-  public static final int MARK_SWEEP = g1Space.getDescriptor();
+  /** Fraction of available virtual memory to give to the eden */
+  protected static final float EDEN_VM_FRACTION = 0.5f;
+  /** Fraction of available virtual memory to give to the old */
+  protected static final float OLD_VM_FRACTION = 1.0f - EDEN_VM_FRACTION;
 
-  public static final int SCAN_MARK = 0;
+  public static final GarbageFirstSpace edenSpace = new GarbageFirstSpace("eden", true, VMRequest.highFraction(EDEN_VM_FRACTION));
+  public static final int EDEN = edenSpace.getDescriptor();
+  private static final Address EDEN_START = edenSpace.getStart();
 
+  private static final Extent OLD_EXTENT = Extent
+      .fromLong(EDEN_START.toLong() - (VMLayoutConstants.AVAILABLE_START.toLong()) - (4 * 1024 * 1024));
+  public static final GarbageFirstSpace oldSpace = new GarbageFirstSpace("old", true, VMRequest.fixedExtent(OLD_EXTENT, true));
 
-  /****************************************************************************
+  public static final int OLD = oldSpace.getDescriptor();
+  public static final Address OLD_START = oldSpace.getStart();
+
+  /*****************************************************************************
    * Instance variables
    */
 
   /**
    *
    */
-  public final Trace g1Trace = new Trace(metaDataSpace);
+  public final Trace edenTrace = new Trace(metaDataSpace);
 
 
   /*****************************************************************************
@@ -76,27 +74,17 @@ public class G1 extends StopTheWorld {
    */
   @Inline
   @Override
-  public void collectionPhase(short phaseId) {
-
+  public final void collectionPhase(short phaseId) {
+    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(false);
+    /*
     if (phaseId == PREPARE) {
-      super.collectionPhase(phaseId);
-      g1Trace.prepare();
-      g1Space.prepare(true);
-      return;
     }
-
     if (phaseId == CLOSURE) {
-      g1Trace.prepare();
-      return;
     }
     if (phaseId == RELEASE) {
-      g1Trace.release();
-      g1Space.release();
-      super.collectionPhase(phaseId);
-      return;
     }
-
     super.collectionPhase(phaseId);
+    */
   }
 
   /*****************************************************************************
@@ -106,12 +94,13 @@ public class G1 extends StopTheWorld {
   /**
    * {@inheritDoc}
    * The superclass accounts for its spaces, we just
-   * augment this with the mark-sweep space's contribution.
+   * augment this with the default space's contribution.
    */
   @Override
   public int getPagesUsed() {
-    return (g1Space.reservedPages() + super.getPagesUsed());
+    return (edenSpace.reservedPages() + super.getPagesUsed());
   }
+
 
   /*****************************************************************************
    * Miscellaneous
@@ -120,17 +109,9 @@ public class G1 extends StopTheWorld {
   /**
    * {@inheritDoc}
    */
-  @Override
-  public boolean willNeverMove(ObjectReference object) {
-    if (Space.isInSpace(MARK_SWEEP, object))
-      return true;
-    return super.willNeverMove(object);
-  }
-
   @Interruptible
   @Override
   protected void registerSpecializedMethods() {
-    TransitiveClosure.registerSpecializedScan(SCAN_MARK, G1TraceLocal.class);
     super.registerSpecializedMethods();
   }
 }

@@ -13,42 +13,41 @@
 package org.mmtk.plan.garbagefirst;
 
 import org.mmtk.plan.MutatorContext;
-import org.mmtk.plan.StopTheWorldMutator;
-import org.mmtk.plan.marksweep.MS;
-import org.mmtk.plan.marksweep.MSCollector;
-import org.mmtk.policy.MarkSweepLocal;
+import org.mmtk.policy.GarbageFirstLocal;
 import org.mmtk.policy.Space;
 import org.mmtk.utility.alloc.Allocator;
+import org.mmtk.vm.VM;
 import org.vmmagic.pragma.Inline;
 import org.vmmagic.pragma.Uninterruptible;
 import org.vmmagic.unboxed.Address;
 import org.vmmagic.unboxed.ObjectReference;
 
 /**
- * This class implements <i>per-mutator thread</i> behavior
- * and state for the <i>MS</i> plan, which implements a full-heap
- * mark-sweep collector.<p>
+ * This class implements <i>per-mutator thread</i> behavior and state
+ * for the <i>NoGC</i> plan, which simply allocates (without ever collecting
+ * until the available space is exhausted.<p>
  *
- * Specifically, this class defines <i>MS</i> mutator-time allocation
- * and per-mutator thread collection semantics (flushing and restoring
- * per-mutator allocator state).
+ * Specifically, this class defines <i>NoGC</i> mutator-time allocation
+ * through a bump pointer (<code>def</code>) and includes stubs for
+ * per-mutator thread collection semantics (since there is no collection
+ * in this plan, these remain just stubs).
  *
- * @see MS
- * @see MSCollector
- * @see StopTheWorldMutator
- * @see MutatorContext
+ * @see G1
+ * @see G1Collector
+ * @see org.mmtk.plan.StopTheWorldMutator
+ * @see org.mmtk.plan.MutatorContext
  */
 @Uninterruptible
-public class G1Mutator extends StopTheWorldMutator {
+public class G1Mutator extends MutatorContext {
 
-  /****************************************************************************
+  /************************************************************************
    * Instance fields
    */
 
   /**
    *
    */
-  protected MarkSweepLocal g1 = new MarkSweepLocal(G1.g1Space);
+  private final GarbageFirstLocal nogc = new GarbageFirstLocal(G1.edenSpace);
 
 
   /****************************************************************************
@@ -56,40 +55,29 @@ public class G1Mutator extends StopTheWorldMutator {
    */
 
   /**
-   * {@inheritDoc}<p>
-   *
-   * This class handles the default allocator from the mark sweep space,
-   * and delegates everything else to the superclass.
+   * {@inheritDoc}
    */
   @Inline
   @Override
   public Address alloc(int bytes, int align, int offset, int allocator, int site) {
     if (allocator == G1.ALLOC_DEFAULT) {
-      return g1.alloc(bytes, align, offset);
+      return nogc.alloc(bytes, align, offset);
     }
     return super.alloc(bytes, align, offset, allocator, site);
   }
 
-  /**
-   * {@inheritDoc}<p>
-   *
-   * Initialize the object header for objects in the mark-sweep space,
-   * and delegate to the superclass for other objects.
-   */
   @Inline
   @Override
   public void postAlloc(ObjectReference ref, ObjectReference typeRef,
       int bytes, int allocator) {
-    if (allocator == G1.ALLOC_DEFAULT)
-      G1.g1Space.postAlloc(ref);
-    else
+    if (allocator != G1.ALLOC_DEFAULT) {
       super.postAlloc(ref, typeRef, bytes, allocator);
+    }
   }
 
   @Override
   public Allocator getAllocatorFromSpace(Space space) {
-    if (space == G1.g1Space)
-      return g1;
+    if (space == G1.edenSpace) return nogc;
     return super.getAllocatorFromSpace(space);
   }
 
@@ -103,25 +91,15 @@ public class G1Mutator extends StopTheWorldMutator {
    */
   @Inline
   @Override
-  public void collectionPhase(short phaseId, boolean primary) {
-    if (phaseId == G1.PREPARE) {
-      super.collectionPhase(phaseId, primary);
-      g1.prepare();
-      return;
-    }
+  public final void collectionPhase(short phaseId, boolean primary) {
+    VM.assertions.fail("GC Triggered in NoGC Plan.");
+    /*
+     if (phaseId == NoGC.PREPARE) {
+     }
 
-    if (phaseId == G1.RELEASE) {
-      g1.release();
-      super.collectionPhase(phaseId, primary);
-      return;
-    }
-
-    super.collectionPhase(phaseId, primary);
-  }
-
-  @Override
-  public void flush() {
-    super.flush();
-    g1.flush();
+     if (phaseId == NoGC.RELEASE) {
+     }
+     super.collectionPhase(phaseId, primary);
+     */
   }
 }
