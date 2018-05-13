@@ -125,6 +125,10 @@ public class PlanSpecificConfig {
         new PlanSpecific("org.mmtk.plan.stickyms.StickyMS")
         .addExpectedSpaces("ms"),
         "StickyMS");
+    register(
+        new PlanSpecific("org.mmtk.plan.garbagefirst.G1")
+        .addExpectedSpaces("eden", "old"),
+        "G1", "GarbageFirst");
   }
 
   /**
