@@ -10,20 +10,24 @@
  *  See the COPYRIGHT.txt file distributed with this work for information
  *  regarding copyright ownership.
  */
-package org.mmtk.policy;
+package org.mmtk.policy.garbagefirst;
 
 import static org.mmtk.utility.Constants.*;
 
 import org.mmtk.plan.Plan;
 import org.mmtk.plan.TransitiveClosure;
+import org.mmtk.policy.Space;
 import org.mmtk.utility.heap.MonotonePageResource;
 import org.mmtk.utility.heap.VMRequest;
+import org.mmtk.utility.heap.layout.VMLayoutConstants;
 import org.mmtk.utility.HeaderByte;
+import org.mmtk.plan.garbagefirst.*;
 
 import org.mmtk.vm.VM;
 
 import org.vmmagic.unboxed.*;
 import org.vmmagic.pragma.*;
+import org.mmtk.policy.garbagefirst.*;
 
 /**
  * This class implements tracing for a simple immortal collection
@@ -44,7 +48,13 @@ import org.vmmagic.pragma.*;
    */
   static final byte GC_MARK_BIT_MASK = 1;
   private static final int META_DATA_PAGES_PER_REGION = CARD_META_PAGES_PER_REGION;
-
+  public static final int HEAP_USED_BYTES = VMLayoutConstants.AVAILABLE_BYTES.minus(4*1024*1024).toInt();
+  public static final int EDEN_USED_BYTES = (Extent.fromLong(
+                                              (long) (G1.EDEN_VM_FRACTION * VMLayoutConstants.AVAILABLE_BYTES.toLong())))
+                                            .toInt();
+  public static final int OLD_USED_BYTES = HEAP_USED_BYTES - EDEN_USED_BYTES;
+  private int currRegion = -1;
+  public final RegionList regionsMap = new RegionList();
   /****************************************************************************
    *
    * Instance variables
@@ -88,6 +98,7 @@ import org.vmmagic.pragma.*;
     } else {
       pr = new MonotonePageResource(this, start, extent, META_DATA_PAGES_PER_REGION);
     }
+
   }
 
   /** @return the current mark state */
@@ -197,5 +208,23 @@ import org.vmmagic.pragma.*;
       return true;  // ignore boot image "reachabilty" if we're not tracing it
     else
       return (VM.objectModel.readAvailableByte(object) & GC_MARK_BIT_MASK) == markState;
+  }
+  
+  public Address getSpace() {
+    Address rtn;
+    currRegion++;
+
+    rtn = acquire(1<<(Region.REGION_LOG - LOG_BYTES_IN_PAGE));//acquire(PAGES_IN_REGION);
+    regionsMap.setRegionList(currRegion, rtn);
+
+    return rtn;
+  }
+  
+  public Address getFirstRegion() {
+    return RegionList.regionsFreeList.get(0);
+  }
+  
+  public Address getUsedRegion() {
+    return RegionList.regionsFreeList.get(currRegion);
   }
 }

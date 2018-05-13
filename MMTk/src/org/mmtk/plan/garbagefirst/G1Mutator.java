@@ -12,9 +12,9 @@
  */
 package org.mmtk.plan.garbagefirst;
 
-import org.mmtk.plan.MutatorContext;
-import org.mmtk.policy.GarbageFirstLocal;
+import org.mmtk.plan.*;
 import org.mmtk.policy.Space;
+import org.mmtk.policy.garbagefirst.MutatorLocal;
 import org.mmtk.utility.alloc.Allocator;
 import org.mmtk.vm.VM;
 import org.vmmagic.pragma.Inline;
@@ -38,7 +38,7 @@ import org.vmmagic.unboxed.ObjectReference;
  * @see org.mmtk.plan.MutatorContext
  */
 @Uninterruptible
-public class G1Mutator extends MutatorContext {
+public class G1Mutator extends StopTheWorldMutator {
 
   /************************************************************************
    * Instance fields
@@ -47,7 +47,7 @@ public class G1Mutator extends MutatorContext {
   /**
    *
    */
-  private final GarbageFirstLocal nogc = new GarbageFirstLocal(G1.edenSpace);
+  protected final MutatorLocal g1 = new MutatorLocal(G1.edenSpace);
 
 
   /****************************************************************************
@@ -59,9 +59,9 @@ public class G1Mutator extends MutatorContext {
    */
   @Inline
   @Override
-  public Address alloc(int bytes, int align, int offset, int allocator, int site) {
+  public Address alloc(int bytes, int align, int offset, int allocator, int site) {;
     if (allocator == G1.ALLOC_DEFAULT) {
-      return nogc.alloc(bytes, align, offset);
+      return g1.alloc(bytes, align, offset);
     }
     return super.alloc(bytes, align, offset, allocator, site);
   }
@@ -70,14 +70,17 @@ public class G1Mutator extends MutatorContext {
   @Override
   public void postAlloc(ObjectReference ref, ObjectReference typeRef,
       int bytes, int allocator) {
-    if (allocator != G1.ALLOC_DEFAULT) {
+    if (allocator == G1.ALLOC_DEFAULT) {
+      //G1.edenSpace.postAlloc(ref, bytes);
+    }
+    else {
       super.postAlloc(ref, typeRef, bytes, allocator);
     }
   }
 
   @Override
   public Allocator getAllocatorFromSpace(Space space) {
-    if (space == G1.edenSpace) return nogc;
+    if (space == G1.edenSpace) return g1;
     return super.getAllocatorFromSpace(space);
   }
 

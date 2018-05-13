@@ -10,8 +10,9 @@
  *  See the COPYRIGHT.txt file distributed with this work for information
  *  regarding copyright ownership.
  */
-package org.mmtk.policy;
+package org.mmtk.policy.garbagefirst;
 
+import org.mmtk.policy.ImmortalSpace;
 import org.mmtk.utility.alloc.BumpPointer;
 import org.vmmagic.pragma.Uninterruptible;
 

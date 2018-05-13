@@ -14,7 +14,7 @@ package org.mmtk.plan.garbagefirst;
 
 import org.mmtk.plan.Plan;
 import org.mmtk.plan.Trace;
-import org.mmtk.policy.GarbageFirstSpace;
+import org.mmtk.policy.garbagefirst.GarbageFirstSpace;
 import org.mmtk.utility.heap.VMRequest;
 import org.mmtk.utility.heap.layout.VMLayoutConstants;
 import org.mmtk.vm.VM;
@@ -40,20 +40,22 @@ public class G1 extends Plan {
    *
    */
   /** Fraction of available virtual memory to give to the eden */
-  protected static final float EDEN_VM_FRACTION = 0.5f;
+  public static final float EDEN_VM_FRACTION = 0.5f;
   /** Fraction of available virtual memory to give to the old */
-  protected static final float OLD_VM_FRACTION = 1.0f - EDEN_VM_FRACTION;
+  public static final float OLD_VM_FRACTION = 1.0f - EDEN_VM_FRACTION;
 
-  public static final GarbageFirstSpace edenSpace = new GarbageFirstSpace("eden", true, VMRequest.highFraction(EDEN_VM_FRACTION));
+  public static final GarbageFirstSpace edenSpace = new GarbageFirstSpace("eden", true, VMRequest.fraction(EDEN_VM_FRACTION));
   public static final int EDEN = edenSpace.getDescriptor();
-  private static final Address EDEN_START = edenSpace.getStart();
+  public static final Address EDEN_START = edenSpace.getStart();
 
-  private static final Extent OLD_EXTENT = Extent
-      .fromLong(EDEN_START.toLong() - (VMLayoutConstants.AVAILABLE_START.toLong()) - (4 * 1024 * 1024));
-  public static final GarbageFirstSpace oldSpace = new GarbageFirstSpace("old", true, VMRequest.fixedExtent(OLD_EXTENT, true));
+  private static long OLD_BYTES = (long) (OLD_VM_FRACTION * VMLayoutConstants.AVAILABLE_BYTES.toLong());
+  private static Extent OLD_EXTENT = Extent.fromLong(OLD_BYTES- (4*1024*1024));
+  //private static final Extent OLD_EXTENT = Extent.fromLong(EDEN_START.toLong() - (VMLayoutConstants.AVAILABLE_START.toLong()) - (4 * 1024 * 1024));
+  public static final GarbageFirstSpace oldSpace = new GarbageFirstSpace("old", true, VMRequest.fixedExtent(OLD_EXTENT, false));
 
   public static final int OLD = oldSpace.getDescriptor();
   public static final Address OLD_START = oldSpace.getStart();
+  
 
   /*****************************************************************************
    * Instance variables
