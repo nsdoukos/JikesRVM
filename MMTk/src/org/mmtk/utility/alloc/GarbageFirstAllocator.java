@@ -85,7 +85,7 @@ public class GarbageFirstAllocator extends Allocator{
 //System.out.println("cur: "+start.toString());
    /* check whether we've exceeded the limit */
    if (end.GT(limit)) {
-     System.out.println("alloc limit");
+     //System.out.println("alloc limit");
 
 //     if (bytes > BYTES_IN_REGION)
 //       return overflowAlloc(bytes, align, offset);

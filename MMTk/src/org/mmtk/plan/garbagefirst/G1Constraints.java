@@ -24,6 +24,17 @@ import org.vmmagic.pragma.*;
  */
 @Uninterruptible
 public class G1Constraints extends PlanConstraints {
+  
+  @Override
+  public boolean generational() {
+    return true;
+  }
+
+  @Override
+  public boolean movesObjects() {
+    return true;
+  }
+  
   @Override
   public int gcHeaderBits() {
     return 0;
@@ -31,5 +42,10 @@ public class G1Constraints extends PlanConstraints {
   @Override
   public int gcHeaderWords() {
     return 0;
+  }
+  
+  @Override
+  public boolean needsObjectReferenceWriteBarrier() {
+    return true;
   }
 }

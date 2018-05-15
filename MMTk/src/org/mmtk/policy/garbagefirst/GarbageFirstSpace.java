@@ -54,7 +54,7 @@ import org.mmtk.policy.garbagefirst.*;
                                             .toInt();
   public static final int OLD_USED_BYTES = HEAP_USED_BYTES - EDEN_USED_BYTES;
   private int currRegion = -1;
-  public final RegionList regionsMap = new RegionList();
+  public RegionList regionsMap = new RegionList(G1.getRemsetPool());
   /****************************************************************************
    *
    * Instance variables
@@ -215,16 +215,11 @@ import org.mmtk.policy.garbagefirst.*;
     currRegion++;
 
     rtn = acquire(1<<(Region.REGION_LOG - LOG_BYTES_IN_PAGE));//acquire(PAGES_IN_REGION);
-    regionsMap.setRegionList(currRegion, rtn);
 
     return rtn;
   }
   
-  public Address getFirstRegion() {
-    return RegionList.regionsFreeList.get(0);
-  }
-  
-  public Address getUsedRegion() {
-    return RegionList.regionsFreeList.get(currRegion);
+  public RegionList getRegionList() {
+    return regionsMap;
   }
 }
