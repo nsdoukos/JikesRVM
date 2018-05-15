@@ -28,4 +28,16 @@ public class Card {
   public boolean isMarked(int index) {
     return cardByte[index] == (byte) 0;
   }
+  
+  public void markCard(int index) {
+    cardByte[index] = (byte) 1;
+  }
+  
+  public byte getCard(int index) {
+    return cardByte[index];
+  }
+  
+  public void setCard(int index, byte value) {
+    cardByte[index] = value;
+  }
 }
