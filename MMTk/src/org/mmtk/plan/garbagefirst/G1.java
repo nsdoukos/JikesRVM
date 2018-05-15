@@ -12,10 +12,12 @@
  */
 package org.mmtk.plan.garbagefirst;
 
+
 import org.mmtk.plan.Plan;
 import org.mmtk.plan.StopTheWorld;
 import org.mmtk.plan.Trace;
 import org.mmtk.policy.garbagefirst.GarbageFirstSpace;
+import org.mmtk.policy.garbagefirst.Card;
 import org.mmtk.utility.deque.SharedDeque;
 import org.mmtk.utility.heap.VMRequest;
 import org.mmtk.utility.heap.layout.HeapLayout;
@@ -43,7 +45,7 @@ public class G1 extends StopTheWorld {
    * Global remember sets
    */
   public static final SharedDeque remsetPool = new SharedDeque("remSets",metaDataSpace, 1);
-
+  public static Card cardMap = new Card(VMLayoutConstants.AVAILABLE_BYTES.toLong(), 512);
   /**
    *
    */
