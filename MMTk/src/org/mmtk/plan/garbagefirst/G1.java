@@ -13,14 +13,12 @@
 package org.mmtk.plan.garbagefirst;
 
 
-import org.mmtk.plan.Plan;
 import org.mmtk.plan.StopTheWorld;
 import org.mmtk.plan.Trace;
-import org.mmtk.policy.garbagefirst.GarbageFirstSpace;
 import org.mmtk.policy.garbagefirst.Card;
+import org.mmtk.policy.garbagefirst.GarbageFirstSpace;
 import org.mmtk.utility.deque.SharedDeque;
 import org.mmtk.utility.heap.VMRequest;
-import org.mmtk.utility.heap.layout.HeapLayout;
 import org.mmtk.utility.heap.layout.VMLayoutConstants;
 import org.mmtk.vm.VM;
 import org.vmmagic.pragma.Inline;
@@ -28,7 +26,6 @@ import org.vmmagic.pragma.Interruptible;
 import org.vmmagic.pragma.Uninterruptible;
 import org.vmmagic.unboxed.Address;
 import org.vmmagic.unboxed.Extent;
-import org.vmmagic.unboxed.ObjectReference;
 
 
 /**
@@ -45,7 +42,8 @@ public class G1 extends StopTheWorld {
    * Global remember sets
    */
   public static final SharedDeque remsetPool = new SharedDeque("remSets",metaDataSpace, 1);
-  public static Card cardMap = new Card(VMLayoutConstants.AVAILABLE_BYTES.toLong(), 512);
+  public static Card cardMap = new Card(VMLayoutConstants.AVAILABLE_BYTES.toLong(), 512, 4);
+  public static final SharedDeque hotCards = new SharedDeque("hotCards", metaDataSpace, 1);
   /**
    *
    */
@@ -65,7 +63,7 @@ public class G1 extends StopTheWorld {
 
   public static final int OLD = oldSpace.getDescriptor();
   public static final Address OLD_START = oldSpace.getStart();
-  
+
 
   /*****************************************************************************
    * Instance variables
@@ -76,7 +74,7 @@ public class G1 extends StopTheWorld {
    */
   public final Trace edenTrace = new Trace(metaDataSpace);
 
-  
+
   /*****************************************************************************
    * Collection
    */
@@ -150,7 +148,7 @@ public class G1 extends StopTheWorld {
 //  static boolean inNursery(ObjectReference obj) {
 //    return inNursery(obj.toAddress());
 //  }
-  
+
   /**
    * {@inheritDoc}
    */
@@ -159,8 +157,12 @@ public class G1 extends StopTheWorld {
   protected void registerSpecializedMethods() {
     super.registerSpecializedMethods();
   }
-  
+
   public static SharedDeque getRemsetPool() {
     return remsetPool;
+  }
+
+  public static Card getCardMap() {
+    return cardMap;
   }
 }

@@ -12,22 +12,14 @@
  */
 package org.mmtk.plan.garbagefirst;
 
-import static org.mmtk.plan.generational.Gen.USE_OBJECT_BARRIER_FOR_AASTORE;
-import static org.mmtk.plan.generational.Gen.USE_OBJECT_BARRIER_FOR_PUTFIELD;
-import static org.mmtk.utility.Constants.ARRAY_ELEMENT;
-import static org.mmtk.utility.Constants.INSTANCE_FIELD;
-
-import org.mmtk.plan.*;
-import org.mmtk.plan.generational.Gen;
+import org.mmtk.plan.StopTheWorldMutator;
 import org.mmtk.plan.generational.GenCollector;
 import org.mmtk.policy.Space;
+import org.mmtk.policy.garbagefirst.Card;
 import org.mmtk.policy.garbagefirst.MutatorLocal;
 import org.mmtk.policy.garbagefirst.Region;
 import org.mmtk.policy.garbagefirst.RegionList;
-import org.mmtk.utility.HeaderByte;
 import org.mmtk.utility.alloc.Allocator;
-import org.mmtk.utility.deque.AddressPairDeque;
-import org.mmtk.utility.deque.ObjectReferenceDeque;
 import org.mmtk.utility.deque.WriteBuffer;
 import org.mmtk.vm.VM;
 import org.vmmagic.pragma.Inline;
@@ -63,6 +55,7 @@ public class G1Mutator extends StopTheWorldMutator {
    */
   protected final MutatorLocal g1 = new MutatorLocal(G1.edenSpace);
   protected WriteBuffer remset;
+  protected Card cards;
 
   /****************************************************************************
   *
@@ -79,9 +72,10 @@ public class G1Mutator extends StopTheWorldMutator {
   */
  public G1Mutator() {
    remset = G1.edenSpace.getRegionList().getWriteBuffer(1);
+    cards = G1.getCardMap();
    //remset = new WriteBuffer(G1.remsetPool);
  }
- 
+
   /****************************************************************************
    * Mutator-time allocation
    */
@@ -137,23 +131,29 @@ public class G1Mutator extends StopTheWorldMutator {
     Region srcRegion = regions.getRegion(slot);
     Region dstRegion = regions.getRegion(tgt.toAddress());
     remset = dstRegion.getWriteBuffer();
-    
+
     //System.out.println("src: "+srcRegion.getAddress().toString()+ " dst: "+dstRegion.getAddress().toString());
     /* Remember from old to young references */
     if (srcRegion.isOld() && !dstRegion.isOld()) {
+      if (!cards.isMarked(tgt.toAddress()))
+        cards.markCard(tgt.toAddress());
+
       remset.insert(slot);
       dstRegion.rsElementsInc();
     }
     /* Remember from young to other young references */
     if(srcRegion.getAddress().NE(dstRegion.getAddress())) {
+      if (!cards.isMarked(tgt.toAddress()))
+        cards.markCard(tgt.toAddress());
+
       remset.insert(slot);
       dstRegion.rsElementsInc();
       //regions.getRegion(slot).getWriteBuffer().insert(slot);
     }
-    if (dstRegion.getRsElenmets() >= 1) 
+    if (dstRegion.getRsElements() >= 256)
       remset.flushLocal();
   }
-  
+
   /**
    * {@inheritDoc}<p>
    *
@@ -169,7 +169,7 @@ public class G1Mutator extends StopTheWorldMutator {
     fastPath(src, slot, tgt, mode);
     VM.barriers.objectReferenceWrite(src, tgt, metaDataA, metaDataB, mode);
   }
-  
+
   /**
    * {@inheritDoc}<p>
    *

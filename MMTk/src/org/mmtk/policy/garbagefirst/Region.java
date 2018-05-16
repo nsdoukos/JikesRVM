@@ -105,7 +105,7 @@ public class Region {
     rs_elements++;
   }
   
-  public short getRsElenmets() {
+  public short getRsElements() {
     return rs_elements;
   }
 }
